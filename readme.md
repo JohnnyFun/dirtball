@@ -47,3 +47,4 @@ Play the game here: [johnschottler.com/dirtball](http://johnschottler.com/dirtba
       - hurt when hit surface hard. take more life depending on how quickly dirtball slowed down
       - maybe spawn characters who can attack dirtball
     - other common game features...
+- make him leave trails of sludge whereever he goes lol
