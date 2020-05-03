@@ -1,10 +1,10 @@
 // https://doc.babylonjs.com/features/es6_support
 
 /**
-// TODO:
+// TODO: glb won't load from nano-server IIS. registered mime, still nothin. 
 // TODO: success screen words, see this: https://doc.babylonjs.com/how_to/gui
 // TODO: multiple cameras? one for on character, other for moving around environment in god-mode
-// TODO: window resize, reset game engine display...
+// TODO: repeat stone material, and then make the pattern even smaller maybe, same with dirt...
 
  * TODO (keep SUPER SIMPLE. get something working, then add to it):
  *  - (SKIP gen, just make static one first!) generate config object to describe the maze
@@ -31,7 +31,20 @@
 
 import '@babylonjs/loaders/glTF'
 
-import {ActionManager, Axis, CannonJSPlugin, DirectionalLight, ExecuteCodeAction, PhysicsImpostor, SceneLoader, ShadowGenerator, Skeleton, Space, StandardMaterial, Texture, UniversalCamera} from '@babylonjs/core'
+import {
+  ActionManager,
+  Axis,
+  CannonJSPlugin,
+  DirectionalLight,
+  ExecuteCodeAction,
+  PhysicsImpostor,
+  SceneLoader,
+  ShadowGenerator,
+  Space,
+  StandardMaterial,
+  Texture,
+  UniversalCamera
+} from '@babylonjs/core'
 
 import CANNON from 'cannon'
 import {Engine} from '@babylonjs/core/Engines/engine'
@@ -41,6 +54,11 @@ import {MeshBuilder} from '@babylonjs/core/Meshes/meshBuilder'
 import {Scene} from '@babylonjs/core/scene'
 import { Vector3 } from '@babylonjs/core/Maths/math'
 import maze from './maze'
+
+let statusTimer
+let lastHighestPoint = 0
+let won = false
+let lastTaunt = 0
 
 const canvas = document.getElementById('renderCanvas')
 const engine = new Engine(canvas)
@@ -87,7 +105,7 @@ const shadowGenerator = new ShadowGenerator(2048, sun)
 
 const characterSize = 2
 const characterAcceleration = .3
-const characterMaxSpeed = 10
+const characterMaxSpeed = 14
 let character = MeshBuilder.CreateSphere('character', {
   segments: 16,
   diameter: characterSize
@@ -95,6 +113,7 @@ let character = MeshBuilder.CreateSphere('character', {
 character.material = dirtMaterial
 character.physicsImpostor = new PhysicsImpostor(character, PhysicsImpostor.SphereImpostor, {mass: 10, restitution: .5 }, scene)
 shadowGenerator.addShadowCaster(character)
+window.character = character
 
 let camera = new UniversalCamera('camera', new Vector3(0,0,0), scene)
 
@@ -118,15 +137,15 @@ wall.physicsImpostor = new PhysicsImpostor(wall, PhysicsImpostor.BoxImpostor, { 
 wall.receiveShadows = true
 shadowGenerator.addShadowCaster(wall)
 
-let platform = MeshBuilder.CreateBox('platform', {
+let platform1 = MeshBuilder.CreateBox('platform1', {
   height: 6,
   width: 6,
   depth: .5
 }, scene)
-platform.position.set(-10, 5, -10)
-platform.rotation.x = -Math.PI / 2
-platform.material = stoneMaterial
-platform.physicsImpostor = new PhysicsImpostor(platform, PhysicsImpostor.BoxImpostor, {mass: 0, friction: 0.5, restitution: 0.7 }, scene)
+platform1.position.set(-10, 5, -10)
+platform1.rotation.x = -Math.PI / 2
+platform1.material = stoneMaterial
+platform1.physicsImpostor = new PhysicsImpostor(platform1, PhysicsImpostor.BoxImpostor, {mass: 0, friction: 0.5, restitution: 0.7 }, scene)
 
 let ramp = MeshBuilder.CreateBox('ramp', {
   height: 12,
@@ -134,7 +153,7 @@ let ramp = MeshBuilder.CreateBox('ramp', {
   depth: .5
 }, scene)
 ramp.rotation.x = -Math.PI / 3
-ramp.position.set(-10, 2, 0)
+ramp.position.set(-10, 2, 2)
 ramp.material = stoneMaterial
 ramp.physicsImpostor = new PhysicsImpostor(ramp, PhysicsImpostor.BoxImpostor, {mass: 0, friction: 0.5, restitution: 0.7 }, scene)
 
@@ -149,34 +168,96 @@ ramp2.position.set(-2, 6.9, -10)
 ramp2.material = stoneMaterial
 ramp2.physicsImpostor = new PhysicsImpostor(ramp2, PhysicsImpostor.BoxImpostor, {mass: 0, friction: 0.5, restitution: 0.7 }, scene)
 
+let platform2 = MeshBuilder.CreateBox('platform2', {
+  height: 8,
+  width: 8,
+  depth: .5
+}, scene)
+platform2.position.set(10, 8.5, -10)
+platform2.rotation.x = -Math.PI / 2
+platform2.material = stoneMaterial
+platform2.physicsImpostor = new PhysicsImpostor(platform2, PhysicsImpostor.BoxImpostor, {mass: 0, friction: 0.5, restitution: 0.7 }, scene)
+
+// status msg
+const msg = document.getElementById('status-msg')
+
 addLittleFella()
 
-let i = 0
 reset()
+setStatus('Dirtball, get to the highest platform!', 2)
 scene.onBeforeRenderObservable.add(() => {
-  moveCharacter()
+  if (won) return
+  const fellOffArena = character.position.y < -10
+  if (fellOffArena) {
+    reset()
+    setStatus('You died. Try again', 2)
+  } else {
+    let velocity = character.physicsImpostor.getLinearVelocity().clone()
+    const falling = Math.abs(Math.round(velocity.y)) > 0
+    if (!falling) moveCharacter(velocity) // can't modify your velocity if you're in the air
+  }
   positionCamera()
+  taunt()
 })
 
 engine.runRenderLoop(() => {
   scene.render()
 })
 
+function taunt() {
+  lastHighestPoint = Math.max(lastHighestPoint, character.position.y)
+  const onGround = Math.round(character.position.y) <= 1
+  if (onGround) {
+    const gotClose = lastHighestPoint > 5.5
+    if (gotClose) {
+      const taunts = [
+        'Remember your training, Dirtball',
+        'Easy does it',
+        'Dirtball, this isn\'t a drill',
+        'Oh man...',
+        'What are you doing?'
+      ]
+      if (lastTaunt >= taunts.length) lastTaunt = 0
+      setStatus(taunts[lastTaunt], 2)
+      lastTaunt++
+      lastHighestPoint = 0
+    }
+  }
+}
+
 function reset() {
-  character.position.set(0, 5, 10)
+  clearStatus()
+  lastHighestPoint = 0
+  won = false
+
+  character.position.set(0, 5, 20)
+  // setOnPlatform(platform1)
+  
   character.physicsImpostor.setAngularVelocity(new Vector3(0,0,0))
   character.physicsImpostor.setLinearVelocity(new Vector3(0,0,0))
   positionCamera()
 }
 
-function moveCharacter() {
-  const fellOffArena = character.position.y < -10
-  if (fellOffArena) reset()
-  let velocity = character.physicsImpostor.getLinearVelocity().clone()
-  
-  const falling = Math.abs(Math.round(velocity.y)) > 0
-  if (falling) return // can't modify your velocity if you're in the air
+function setOnPlatform(platform) {
+  console.log(platform.position)
+  // character.position.set(platform.position.clone())
+  character.position.y = platform.position.y + 2
+  character.position.x = platform.position.x
+  character.position.z = platform.position.z
+}
 
+function setStatus(statusMsg, seconds) {
+  clearTimeout(statusTimer)
+  msg.style.display = 'block'
+  msg.innerHTML = statusMsg
+  if (seconds) statusTimer = setTimeout(clearStatus, seconds*1000)
+}
+
+function clearStatus() {
+  msg.style.display = 'none'
+}
+
+function moveCharacter(velocity) {
   if (keys['s'] && velocity.z < characterMaxSpeed) {
     velocity.z += characterAcceleration
   }
@@ -190,7 +271,25 @@ function moveCharacter() {
     velocity.x += characterAcceleration
   }
 
+  if (isWinning(velocity)) {
+    won = true
+    lastTaunt = 0
+    setStatus('Great work, Dirtball.<br/>You won.<br/>Press "r" to play again')
+  }
+
   character.physicsImpostor.setLinearVelocity(velocity)
+}
+
+function isWinning(velocity) {
+  if (character.position.y >= 8.5) {
+    const stopped = Math.round(velocity.x) === 0 && Math.round(velocity.y) === 0 && Math.round(velocity.z) === 0
+    if (stopped) {
+      if (character.position.x >= 7) {
+        return true
+      }
+    }
+  }
+  return false
 }
 
 function positionCamera() {
@@ -223,7 +322,7 @@ function positionCamera() {
 
 function addLittleFella() {
   SceneLoader.ImportMesh('', '/scenes/', 'little-fella.glb', scene, (meshes, particleSystems, skeletons, animationGroups) => {
-    console.log(meshes, particleSystems, skeletons, animationGroups)
+    // console.log(meshes, particleSystems, skeletons, animationGroups)
 
 
     const setMaterialRecursively = mesh => {

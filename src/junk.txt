@@ -10,3 +10,49 @@
 // skyboxMaterial.specularColor = new Color3(0, 0, 0)
 // skyboxMaterial.disableLighting = true
 // skybox.material = skyboxMaterial
+
+-----------------
+code-splitting. works, but focus more on texture image sizes...
+-----------------
+Promise.all([
+  import('cannon'),
+  import('@babylonjs/core/Engines/engine'),
+  import('@babylonjs/core/scene'),
+  import('@babylonjs/core/Meshes/meshBuilder'),
+  import('@babylonjs/core/Lights/Shadows/shadowGenerator'),
+  import('@babylonjs/core/Materials/Textures/texture'),
+  import('@babylonjs/procedural-textures/grass/grassProceduralTexture'),
+  import('@babylonjs/core/Physics/Plugins/cannonJSPlugin'),
+  import('@babylonjs/core/Lights/directionalLight'),
+  import('@babylonjs/core/Actions/directActions'),
+  import('@babylonjs/core/Physics/physicsImpostor'),
+  import('@babylonjs/core/Lights/hemisphericLight'),
+  import('@babylonjs/core/Cameras/universalCamera'),
+  import('@babylonjs/core/Actions/actionManager'),
+  import('@babylonjs/core/Loading/sceneLoader'),
+  import('@babylonjs/core/Materials/standardMaterial'),
+
+  // side effects requirements
+  import('@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent'),
+  import('@babylonjs/core/Physics/physicsEngineComponent'),
+  import('@babylonjs/loaders/glTF')
+]).then(buildGame)
+
+function buildGame(modules) {
+  console.log('building', arguments)
+  const CANNON = modules[0].default
+  const Engine = modules[1].Engine
+  const Scene = modules[2].Scene
+  const MeshBuilder = modules[3].MeshBuilder
+  const ShadowGenerator = modules[4].ShadowGenerator
+  const Texture = modules[5].Texture
+  const GrassProceduralTexture = modules[6].GrassProceduralTexture
+  const CannonJSPlugin = modules[7].CannonJSPlugin
+  const DirectionalLight = modules[8].DirectionalLight
+  const ExecuteCodeAction = modules[9].ExecuteCodeAction
+  const PhysicsImpostor = modules[10].PhysicsImpostor
+  const HemisphericLight = modules[11].HemisphericLight
+  const UniversalCamera = modules[12].UniversalCamera
+  const ActionManager = modules[13].ActionManager
+  const SceneLoader = modules[14].SceneLoader
+  const StandardMaterial = modules[15].StandardMaterial

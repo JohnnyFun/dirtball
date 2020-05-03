@@ -2,8 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
 
 <head>
-    <title>Maze</title>
-    <script src="https://code.jquery.com/pep/0.4.2/pep.min.js"></script>
+    <title>Dirtball</title>
     <style>
         html,
         body {
@@ -12,6 +11,7 @@
             padding: 0;
             margin: 0;
             overflow: hidden;
+            font-family: Verdana, Geneva, Tahoma, sans-serif;
         }
 
         #renderCanvas {
@@ -20,11 +20,42 @@
             display: block;
             font-size: 0;
         }
+
+        #status-msg {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            top: 30%;
+            color: #eee;
+            font-size: 52px;
+            text-align: center;
+            background-color: #666;
+            padding: 20px;
+            border-radius: 10px;
+        }
+
+        #controls {
+            position: absolute;
+            left:0;
+            bottom:0;
+            color: #eee;
+            background-color: #000;
+            opacity: .7;
+            padding: 12px;
+            border-radius: 0 12px 0 0;
+        }
     </style>
 </head>
 
 <body>
     <canvas id="renderCanvas" touch-action="none"></canvas>
+    <div id="status-msg"></div>
+    <div id="controls">
+        <div>W: Forward</div>
+        <div>A: Left</div>
+        <div>S: Back</div>
+        <div>D: Right</div>
+    </div>
     <script src="main.js"></script>
 </body>
 
