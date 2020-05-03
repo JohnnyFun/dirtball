@@ -1,12 +1,7 @@
 // https://doc.babylonjs.com/features/es6_support
 
 /**
-// TODO: glb won't load from nano-server IIS. registered mime, still nothin. 
-// TODO: success screen words, see this: https://doc.babylonjs.com/how_to/gui
-// TODO: multiple cameras? one for on character, other for moving around environment in god-mode
-// TODO: repeat stone material, and then make the pattern even smaller maybe, same with dirt...
-
- * TODO (keep SUPER SIMPLE. get something working, then add to it):
+ * Generate maze(s)
  *  - (SKIP gen, just make static one first!) generate config object to describe the maze
  *    - size of maze
  *      - say 100x100 or whatever perimeter
@@ -22,11 +17,6 @@
  *          height: 100,
  *
  *        }
- *  - throw-away method to draw the maze in 2d? Or just go straight to 3d
- *  - start with cube as character first
- *    - hook up wasd controls to move through maze
- *  - detect when character makes it to other side, Winner!, track time it took
- *    - limit so they can't simply walk around the maze...or through walls in the maze for that matter
  */
 
 import '@babylonjs/loaders/glTF'
@@ -53,7 +43,8 @@ import {HemisphericLight} from '@babylonjs/core/Lights/hemisphericLight'
 import {MeshBuilder} from '@babylonjs/core/Meshes/meshBuilder'
 import {Scene} from '@babylonjs/core/scene'
 import { Vector3 } from '@babylonjs/core/Maths/math'
-import maze from './maze'
+
+// import maze from './maze'
 
 let statusTimer
 let lastHighestPoint = 0

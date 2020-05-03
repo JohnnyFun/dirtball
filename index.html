@@ -12,6 +12,7 @@
             margin: 0;
             overflow: hidden;
             font-family: Verdana, Geneva, Tahoma, sans-serif;
+            background-color: #222;
         }
 
         #renderCanvas {
@@ -43,18 +44,41 @@
             opacity: .7;
             padding: 12px;
             border-radius: 0 12px 0 0;
+            font-size: 13px;
+        }
+
+        #controls a {
+            color: rgb(245, 6, 83);
+            text-decoration: none;
+            padding: 3px;
+            border-radius: 3px;
+            border: 1px solid transparent;
+            transition: border .5s;
+        }
+
+        #controls a:hover {
+            border: 1px solid rgb(245, 6, 83);
+        }
+
+        .mt1 {
+            margin-top: 10px;
         }
     </style>
 </head>
 
 <body>
     <canvas id="renderCanvas" touch-action="none"></canvas>
-    <div id="status-msg"></div>
+    <div id="status-msg">Loading...</div>
     <div id="controls">
         <div>W: Forward</div>
         <div>A: Left</div>
         <div>S: Back</div>
         <div>D: Right</div>
+        <div class="mt1">
+            <a href="https://github.com/JohnnyFun/dirtball">
+                Github
+            </a>
+        </div>
     </div>
     <script src="main.js"></script>
 </body>
