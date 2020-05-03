@@ -29,11 +29,12 @@
  *    - limit so they can't simply walk around the maze...or through walls in the maze for that matter
  */
 
-import {ActionManager, Axis, CannonJSPlugin, DirectionalLight, ExecuteCodeAction, PhysicsImpostor, ShadowGenerator, Space, StandardMaterial, Texture, UniversalCamera} from '@babylonjs/core'
+import '@babylonjs/loaders/glTF'
+
+import {ActionManager, Axis, CannonJSPlugin, DirectionalLight, ExecuteCodeAction, PhysicsImpostor, SceneLoader, ShadowGenerator, Skeleton, Space, StandardMaterial, Texture, UniversalCamera} from '@babylonjs/core'
 
 import CANNON from 'cannon'
 import {Engine} from '@babylonjs/core/Engines/engine'
-import {FollowCamera} from '@babylonjs/core/Cameras/followCamera'
 import {GrassProceduralTexture} from '@babylonjs/procedural-textures/grass/grassProceduralTexture'
 import {HemisphericLight} from '@babylonjs/core/Lights/hemisphericLight'
 import {MeshBuilder} from '@babylonjs/core/Meshes/meshBuilder'
@@ -43,6 +44,7 @@ import maze from './maze'
 
 const canvas = document.getElementById('renderCanvas')
 const engine = new Engine(canvas)
+window.addEventListener('resize', e => engine.resize())
 let scene = new Scene(engine)
 
 // physics
@@ -95,7 +97,6 @@ character.physicsImpostor = new PhysicsImpostor(character, PhysicsImpostor.Spher
 shadowGenerator.addShadowCaster(character)
 
 let camera = new UniversalCamera('camera', new Vector3(0,0,0), scene)
-positionCamera()
 
 let ground = MeshBuilder.CreateGround('ground', {
   height: arenaSize,
@@ -122,37 +123,35 @@ let platform = MeshBuilder.CreateBox('platform', {
   width: 6,
   depth: .5
 }, scene)
-platform.position.y = 5
-platform.position.z = -10
-platform.position.x = -10
+platform.position.set(-10, 5, -10)
 platform.rotation.x = -Math.PI / 2
 platform.material = stoneMaterial
 platform.physicsImpostor = new PhysicsImpostor(platform, PhysicsImpostor.BoxImpostor, {mass: 0, friction: 0.5, restitution: 0.7 }, scene)
 
-let ramp = MeshBuilder.CreateBox('platform2', {
+let ramp = MeshBuilder.CreateBox('ramp', {
   height: 12,
   width: 6,
   depth: .5
 }, scene)
 ramp.rotation.x = -Math.PI / 3
-ramp.position.z = 0
-ramp.position.x = -10
-ramp.position.y = 2
+ramp.position.set(-10, 2, 0)
 ramp.material = stoneMaterial
 ramp.physicsImpostor = new PhysicsImpostor(ramp, PhysicsImpostor.BoxImpostor, {mass: 0, friction: 0.5, restitution: 0.7 }, scene)
 
-// let ramp2 = MeshBuilder.CreateBox('platform2', {
-//   height: 12,
-//   width: 6,
-//   depth: .5
-// }, scene)
-// ramp2.rotation.z = -Math.PI / 3
-// ramp2.position.z = 0
-// ramp2.position.x = -10
-// ramp2.position.y = 4
-// ramp2.material = stoneMaterial
-// ramp2.physicsImpostor = new PhysicsImpostor(ramp2, PhysicsImpostor.BoxImpostor, {mass: 0, friction: 0.5, restitution: 0.7 }, scene)
+let ramp2 = MeshBuilder.CreateBox('ramp2', {
+  height: 6,
+  width: 12,
+  depth: .5
+}, scene)
+ramp2.rotate(Axis.Y, Math.PI/10, Space.WORLD)
+ramp2.rotate(Axis.X, Math.PI/2, Space.WORLD)
+ramp2.position.set(-2, 6.9, -10)
+ramp2.material = stoneMaterial
+ramp2.physicsImpostor = new PhysicsImpostor(ramp2, PhysicsImpostor.BoxImpostor, {mass: 0, friction: 0.5, restitution: 0.7 }, scene)
 
+addLittleFella()
+
+let i = 0
 reset()
 scene.onBeforeRenderObservable.add(() => {
   moveCharacter()
@@ -163,47 +162,103 @@ engine.runRenderLoop(() => {
   scene.render()
 })
 
-function positionCamera() {
-  camera.position = new Vector3(character.position.x, character.position.y + 2, character.position.z - 3)
-  camera.position.x = character.position.x
-  camera.position.y = character.position.y + 2
-  camera.position.z = character.position.z + 6
-  camera.setTarget(character.position.clone())
+function reset() {
+  character.position.set(0, 5, 10)
+  character.physicsImpostor.setAngularVelocity(new Vector3(0,0,0))
+  character.physicsImpostor.setLinearVelocity(new Vector3(0,0,0))
+  positionCamera()
 }
 
 function moveCharacter() {
+  const fellOffArena = character.position.y < -10
+  if (fellOffArena) reset()
   let velocity = character.physicsImpostor.getLinearVelocity().clone()
-
-  if (character.position.y < -10) {
-    // fell off ground...dead
-    reset()
-  }
-
+  
   const falling = Math.abs(Math.round(velocity.y)) > 0
-  if (falling) return // can't modify your velocity if you're falling
+  if (falling) return // can't modify your velocity if you're in the air
 
-  if (keys['s']) {
-    if (velocity.z < characterMaxSpeed) velocity.z += characterAcceleration
+  if (keys['s'] && velocity.z < characterMaxSpeed) {
+    velocity.z += characterAcceleration
   }
-  if (keys['w']) {
-    if (velocity.z > -characterMaxSpeed) velocity.z -= characterAcceleration
+  if (keys['w'] && velocity.z > -characterMaxSpeed) {
+    velocity.z -= characterAcceleration
   }
-  if (keys['d']) {
-    if (velocity.x > -characterMaxSpeed) velocity.x -= characterAcceleration
+  if (keys['d'] && velocity.x > -characterMaxSpeed) {
+    velocity.x -= characterAcceleration
   }
-  if (keys['a']) {
-    if (velocity.x < characterMaxSpeed) velocity.x += characterAcceleration
+  if (keys['a'] && velocity.x < characterMaxSpeed) {
+    velocity.x += characterAcceleration
   }
 
   character.physicsImpostor.setLinearVelocity(velocity)
 }
 
-function speeding(speed) {
-  return Math.abs(speed) > characterMaxSpeed // crappy check, but don't let dirtball get going too fast
+function positionCamera() {
+  camera.position = new Vector3(character.position.x, character.position.y + 2, character.position.z - 3)
+  camera.position.x = character.position.x
+  camera.position.y = character.position.y + 2
+  camera.position.z = character.position.z + 6
+  camera.rotation.x = Math.PI / 15 // tilted slightly down
+  camera.rotation.y = Math.PI
+  
+  // // TODO: rotate camera based on angular velocity. tricky though since you'd ideally keep the WASD controls relative to the camera's rotation
+  // const velocity = character.physicsImpostor.getLinearVelocity()
+  
+  // i++
+  // if (i % 50 === 0) console.log(velocity)
+
+  // const movingFasterOnZ = Math.abs(velocity.z) > Math.abs(velocity.x)
+
+  // if (movingFasterOnZ) {
+
+  // }
+  // const movingForward = velocity.z < 0 && movingFasterOnZ
+
+  // if (movingForward) camera.rotation.y = 0
+  // const movingBackward = velocity.z < 0 && Math.abs(velocity.z) > Math.abs(velocity.x) 
+  // if (movingBackward) camera.rotation.y = Math.PI
+
+  // else camera.rotation.y = Math.PI
 }
 
-function reset() {
-  character.position.set(0, 5, 0)
-  character.physicsImpostor.setAngularVelocity(new Vector3(0,0,0))
-  character.physicsImpostor.setLinearVelocity(new Vector3(0,0,0))
+function addLittleFella() {
+  SceneLoader.ImportMesh('', '/scenes/', 'little-fella.glb', scene, (meshes, particleSystems, skeletons, animationGroups) => {
+    console.log(meshes, particleSystems, skeletons, animationGroups)
+
+
+    const setMaterialRecursively = mesh => {
+      mesh.material = dirtMaterial
+      // if (mesh.subMeshes) {
+      //   mesh.subMeshes.forEach(mm => setMaterialRecursively(mm._mesh))
+      // }
+    }
+    meshes.forEach(m => {
+      setMaterialRecursively(m)
+    })
+
+    scene.getAnimationGroupByName('RunCycle').start(true, undefined, 0, .6)
+    let fella = scene.getMeshByName('Fella').parent.parent
+
+    let fellaImposter = MeshBuilder.CreateBox('fellaImposter', {
+      width: 2.5,
+      height: 6.5,
+      depth: 2.5
+    })
+    let transparentMaterial = new StandardMaterial('transparent', scene)
+    transparentMaterial.alpha = 0
+    fellaImposter.material = transparentMaterial
+    fellaImposter.physicsImpostor = new PhysicsImpostor(fellaImposter, PhysicsImpostor.BoxImpostor, { mass: 0, friction: 0.5 }, scene)
+    fella.parent = fellaImposter
+
+    let turnaround = false
+    let goingLeft = false
+    scene.onBeforeRenderObservable.add(() => {
+      turnaround = Math.abs(fellaImposter.position.x) > 5
+      if (turnaround) {
+        goingLeft = !goingLeft
+        fellaImposter.rotate(Axis.Y, Math.PI, Space.WORLD)
+      }
+      fellaImposter.position.x += goingLeft ? -.1 : .1
+    })
+  })
 }
