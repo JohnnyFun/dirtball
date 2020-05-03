@@ -1,10 +1,10 @@
 // https://doc.babylonjs.com/features/es6_support
 
 /**
-// TODO: make char not able to go through wall or fall off ground
-// TODO: why character doesn't fall with gravity applied? maybe try starting character on a plane above the ground and make him roll off?
+// TODO:
 // TODO: success screen words, see this: https://doc.babylonjs.com/how_to/gui
 // TODO: multiple cameras? one for on character, other for moving around environment in god-mode
+// TODO: window resize, reset game engine display...
 
  * TODO (keep SUPER SIMPLE. get something working, then add to it):
  *  - (SKIP gen, just make static one first!) generate config object to describe the maze
@@ -18,9 +18,9 @@
  *      - a grid of walls both x and y
  *    - then cut doors in a path to exit
  *    - return something like:
- *      - { 
+ *      - {
  *          height: 100,
- *          
+ *
  *        }
  *  - throw-away method to draw the maze in 2d? Or just go straight to 3d
  *  - start with cube as character first
@@ -54,7 +54,10 @@ let arenaSize = 60
 
 let keys = {}
 scene.actionManager = new ActionManager(scene)
-scene.actionManager.registerAction(new ExecuteCodeAction(ActionManager.OnKeyDownTrigger, e => keys[e.sourceEvent.key] = true))
+scene.actionManager.registerAction(new ExecuteCodeAction(ActionManager.OnKeyDownTrigger, e => {
+  keys[e.sourceEvent.key] = true
+  if (e.sourceEvent.key === 'r') reset()
+}))
 scene.actionManager.registerAction(new ExecuteCodeAction(ActionManager.OnKeyUpTrigger, e => keys[e.sourceEvent.key] = false))
 
 let dirtMaterial = new StandardMaterial('poop', scene)
@@ -81,13 +84,12 @@ light.intensity = .7
 const shadowGenerator = new ShadowGenerator(2048, sun)
 
 const characterSize = 2
-const characterSpeed = .3
+const characterAcceleration = .3
+const characterMaxSpeed = 10
 let character = MeshBuilder.CreateSphere('character', {
   segments: 16,
   diameter: characterSize
 }, scene)
-character.position.y = 5
-character.position.z = 0
 character.material = dirtMaterial
 character.physicsImpostor = new PhysicsImpostor(character, PhysicsImpostor.SphereImpostor, {mass: 10, restitution: .5 }, scene)
 shadowGenerator.addShadowCaster(character)
@@ -127,18 +129,31 @@ platform.rotation.x = -Math.PI / 2
 platform.material = stoneMaterial
 platform.physicsImpostor = new PhysicsImpostor(platform, PhysicsImpostor.BoxImpostor, {mass: 0, friction: 0.5, restitution: 0.7 }, scene)
 
-let platform2 = MeshBuilder.CreateBox('platform2', {
+let ramp = MeshBuilder.CreateBox('platform2', {
   height: 12,
   width: 6,
   depth: .5
 }, scene)
-platform2.rotation.x = -Math.PI / 3
-platform2.position.z = 0
-platform2.position.x = -10
-platform2.position.y = 2
-platform2.material = stoneMaterial
-platform2.physicsImpostor = new PhysicsImpostor(platform2, PhysicsImpostor.BoxImpostor, {mass: 0, friction: 0.5, restitution: 0.7 }, scene)
+ramp.rotation.x = -Math.PI / 3
+ramp.position.z = 0
+ramp.position.x = -10
+ramp.position.y = 2
+ramp.material = stoneMaterial
+ramp.physicsImpostor = new PhysicsImpostor(ramp, PhysicsImpostor.BoxImpostor, {mass: 0, friction: 0.5, restitution: 0.7 }, scene)
 
+// let ramp2 = MeshBuilder.CreateBox('platform2', {
+//   height: 12,
+//   width: 6,
+//   depth: .5
+// }, scene)
+// ramp2.rotation.z = -Math.PI / 3
+// ramp2.position.z = 0
+// ramp2.position.x = -10
+// ramp2.position.y = 4
+// ramp2.material = stoneMaterial
+// ramp2.physicsImpostor = new PhysicsImpostor(ramp2, PhysicsImpostor.BoxImpostor, {mass: 0, friction: 0.5, restitution: 0.7 }, scene)
+
+reset()
 scene.onBeforeRenderObservable.add(() => {
   moveCharacter()
   positionCamera()
@@ -152,26 +167,43 @@ function positionCamera() {
   camera.position = new Vector3(character.position.x, character.position.y + 2, character.position.z - 3)
   camera.position.x = character.position.x
   camera.position.y = character.position.y + 2
-  camera.position.z = character.position.z +6
+  camera.position.z = character.position.z + 6
   camera.setTarget(character.position.clone())
 }
 
 function moveCharacter() {
   let velocity = character.physicsImpostor.getLinearVelocity().clone()
+
+  if (character.position.y < -10) {
+    // fell off ground...dead
+    reset()
+  }
+
   const falling = Math.abs(Math.round(velocity.y)) > 0
-  if (falling) return // can't modify your velocity if you're falling, bruh
-  
+  if (falling) return // can't modify your velocity if you're falling
+
   if (keys['s']) {
-    velocity.z += characterSpeed
+    if (velocity.z < characterMaxSpeed) velocity.z += characterAcceleration
   }
   if (keys['w']) {
-    velocity.z -= characterSpeed
+    if (velocity.z > -characterMaxSpeed) velocity.z -= characterAcceleration
   }
   if (keys['d']) {
-    velocity.x -= characterSpeed
+    if (velocity.x > -characterMaxSpeed) velocity.x -= characterAcceleration
   }
   if (keys['a']) {
-    velocity.x += characterSpeed
+    if (velocity.x < characterMaxSpeed) velocity.x += characterAcceleration
   }
+
   character.physicsImpostor.setLinearVelocity(velocity)
+}
+
+function speeding(speed) {
+  return Math.abs(speed) > characterMaxSpeed // crappy check, but don't let dirtball get going too fast
+}
+
+function reset() {
+  character.position.set(0, 5, 0)
+  character.physicsImpostor.setAngularVelocity(new Vector3(0,0,0))
+  character.physicsImpostor.setLinearVelocity(new Vector3(0,0,0))
 }
