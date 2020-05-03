@@ -29,8 +29,7 @@
  *    - limit so they can't simply walk around the maze...or through walls in the maze for that matter
  */
 
-import {ActionManager, Axis, CannonJSPlugin, DirectionalLight, ExecuteCodeAction, PhysicsImpostor, ShadowGenerator, Space, StandardMaterial, Texture} from '@babylonjs/core'
-import {Color3, Vector3} from '@babylonjs/core/Maths/math'
+import {ActionManager, Axis, CannonJSPlugin, DirectionalLight, ExecuteCodeAction, PhysicsImpostor, ShadowGenerator, Space, StandardMaterial, Texture, UniversalCamera} from '@babylonjs/core'
 
 import CANNON from 'cannon'
 import {Engine} from '@babylonjs/core/Engines/engine'
@@ -39,6 +38,7 @@ import {GrassProceduralTexture} from '@babylonjs/procedural-textures/grass/grass
 import {HemisphericLight} from '@babylonjs/core/Lights/hemisphericLight'
 import {MeshBuilder} from '@babylonjs/core/Meshes/meshBuilder'
 import {Scene} from '@babylonjs/core/scene'
+import { Vector3 } from '@babylonjs/core/Maths/math'
 import maze from './maze'
 
 const canvas = document.getElementById('renderCanvas')
@@ -73,8 +73,6 @@ grassMaterial.ambientTexture = grassTexture
 let sun = new DirectionalLight("light", new Vector3(0, -1, -1), scene)
 window.light = sun
 sun.position = new Vector3(10, 40, 10)
-// Default intensity is 1. Let's dim the light a small amount
-sun.intensity = 0.6
 
 var light = new HemisphericLight("light1", new Vector3(0, 1, 0), scene)
 light.intensity = .7
@@ -83,86 +81,97 @@ light.intensity = .7
 const shadowGenerator = new ShadowGenerator(2048, sun)
 
 const characterSize = 2
-const characterSpeed = .1
-let characterWrapper = MeshBuilder.CreateBox('characterWrapper', {
-  size: characterSize
-})
-let transparentMaterial = new StandardMaterial('transparentMaterial', scene)
-transparentMaterial.alpha = 0
-characterWrapper.material = transparentMaterial
-characterWrapper.position.y = 5
-characterWrapper.position.z = 3
-// characterWrapper.ellipsoid = new Vector3(characterSize, characterSize, characterSize)
-
+const characterSpeed = .3
 let character = MeshBuilder.CreateSphere('character', {
   segments: 16,
   diameter: characterSize
 }, scene)
+character.position.y = 5
+character.position.z = 0
 character.material = dirtMaterial
-character.parent = characterWrapper
+character.physicsImpostor = new PhysicsImpostor(character, PhysicsImpostor.SphereImpostor, {mass: 10, restitution: .5 }, scene)
 shadowGenerator.addShadowCaster(character)
 
-characterWrapper.physicsImpostor = new PhysicsImpostor(character, PhysicsImpostor.SphereImpostor, {mass: 1}, scene)
-characterWrapper.checkCollisions = true
-// characterWrapper.applyGravity = true
-
-let camera = new FollowCamera('camera', new Vector3(0, 2, -10), scene)
-camera.lockedTarget = characterWrapper
-camera.checkCollisions = true
-camera.applyGravity = true
+let camera = new UniversalCamera('camera', new Vector3(0,0,0), scene)
+positionCamera()
 
 let ground = MeshBuilder.CreateGround('ground', {
   height: arenaSize,
   width: arenaSize
 }, scene)
 ground.material = grassMaterial
-ground.checkCollisions = true
 ground.physicsImpostor = new PhysicsImpostor(ground, PhysicsImpostor.BoxImpostor, {mass: 0, friction: 0.5, restitution: 0.7 }, scene)
 ground.receiveShadows = true
-
-// let platform = MeshBuilder.CreateGround('platform', {
-//   height: 6,
-//   width: 6
-// }, scene)
-// platform.position.y = 3
-// platform.checkCollisions = true
-// platform.physicsImpostor = new PhysicsImpostor(platform, PhysicsImpostor.BoxImpostor, {mass: 0, friction: 0.5, restitution: 0.7 }, scene)
 
 let wall = new MeshBuilder.CreateBox('wall', {
   width: 7,
   height: 5,
-  depth: 1
+  depth: .5
 }, scene)
-// wall.position.z = 5
+wall.position.z = -7
+wall.position.y = 2.5
 wall.material = stoneMaterial
-wall.checkCollisions = true
 wall.physicsImpostor = new PhysicsImpostor(wall, PhysicsImpostor.BoxImpostor, { mass: 0, friction: 0.5, restitution: 0.7 }, scene);
 wall.receiveShadows = true
 shadowGenerator.addShadowCaster(wall)
 
+let platform = MeshBuilder.CreateBox('platform', {
+  height: 6,
+  width: 6,
+  depth: .5
+}, scene)
+platform.position.y = 5
+platform.position.z = -10
+platform.position.x = -10
+platform.rotation.x = -Math.PI / 2
+platform.material = stoneMaterial
+platform.physicsImpostor = new PhysicsImpostor(platform, PhysicsImpostor.BoxImpostor, {mass: 0, friction: 0.5, restitution: 0.7 }, scene)
+
+let platform2 = MeshBuilder.CreateBox('platform2', {
+  height: 12,
+  width: 6,
+  depth: .5
+}, scene)
+platform2.rotation.x = -Math.PI / 3
+platform2.position.z = 0
+platform2.position.x = -10
+platform2.position.y = 2
+platform2.material = stoneMaterial
+platform2.physicsImpostor = new PhysicsImpostor(platform2, PhysicsImpostor.BoxImpostor, {mass: 0, friction: 0.5, restitution: 0.7 }, scene)
+
 scene.onBeforeRenderObservable.add(() => {
   moveCharacter()
+  positionCamera()
 })
 
 engine.runRenderLoop(() => {
   scene.render()
 })
 
+function positionCamera() {
+  camera.position = new Vector3(character.position.x, character.position.y + 2, character.position.z - 3)
+  camera.position.x = character.position.x
+  camera.position.y = character.position.y + 2
+  camera.position.z = character.position.z +6
+  camera.setTarget(character.position.clone())
+}
+
 function moveCharacter() {
+  let velocity = character.physicsImpostor.getLinearVelocity().clone()
+  const falling = Math.abs(Math.round(velocity.y)) > 0
+  if (falling) return // can't modify your velocity if you're falling, bruh
+  
   if (keys['s']) {
-    characterWrapper.position.z += characterSpeed
-    character.rotate(Axis.X, characterSpeed, Space.WORLD)
+    velocity.z += characterSpeed
   }
   if (keys['w']) {
-    characterWrapper.position.z -= characterSpeed
-    character.rotate(Axis.X, -characterSpeed, Space.WORLD)
+    velocity.z -= characterSpeed
   }
   if (keys['d']) {
-    characterWrapper.position.x -= characterSpeed
-    character.rotate(Axis.Z, characterSpeed, Space.WORLD)
+    velocity.x -= characterSpeed
   }
   if (keys['a']) {
-    characterWrapper.position.x += characterSpeed
-    character.rotate(Axis.Z, -characterSpeed, Space.WORLD)
+    velocity.x += characterSpeed
   }
+  character.physicsImpostor.setLinearVelocity(velocity)
 }
