@@ -2,7 +2,7 @@
 
 You are Dirtball. A highly-trained ball of sludge and spit on his first mission.
 
-Play the game here: [johnschottler.com/dirtball](http://johnschottler.com/dirtball/index.html)
+Play the game here: [https://johnschottler.com/projects/dirtball/index.html](https://johnschottler.com/projects/dirtball/index.html)
 
 ![game-play](./gameplay.jpg)
 
