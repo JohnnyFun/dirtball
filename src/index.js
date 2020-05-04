@@ -311,8 +311,16 @@ function positionCamera() {
   // else camera.rotation.y = Math.PI
 }
 
+// kinda hacky--want to be able to host this from a deep directory on personal site, so we need to build up a full path, since `ImportMesh` seems to assume it's absolute no matter what
+function resolve(relative) {
+  const path = window.location.pathname.replace(/[^\.\/]+\.html/, '').trim()
+  if (path === '' || path === '/') return relative
+  return `${path}/${relative}`.replace(/\/\//, '/')
+}
+
 function addLittleFella() {
-  SceneLoader.ImportMesh('', '/scenes/', 'little-fella.glb', scene, (meshes, particleSystems, skeletons, animationGroups) => {
+  console.log(resolve('scenes/'))
+  SceneLoader.ImportMesh('', resolve('scenes/'), 'little-fella.glb', scene, (meshes, particleSystems, skeletons, animationGroups) => {
     // console.log(meshes, particleSystems, skeletons, animationGroups)
 
 
