@@ -191,9 +191,7 @@ scene.onBeforeRenderObservable.add(() => {
   taunt()
 })
 
-engine.runRenderLoop(() => {
-  scene.render()
-})
+engine.runRenderLoop(() => scene.render())
 
 function taunt() {
   lastHighestPoint = Math.max(lastHighestPoint, character.position.y)
@@ -229,13 +227,13 @@ function reset() {
   positionCamera()
 }
 
-function setOnPlatform(platform) {
-  console.log(platform.position)
-  // character.position.set(platform.position.clone())
-  character.position.y = platform.position.y + 2
-  character.position.x = platform.position.x
-  character.position.z = platform.position.z
-}
+// function setOnPlatform(platform) {
+//   console.log(platform.position)
+//   // character.position.set(platform.position.clone())
+//   character.position.y = platform.position.y + 2
+//   character.position.x = platform.position.x
+//   character.position.z = platform.position.z
+// }
 
 function setStatus(statusMsg, seconds) {
   clearTimeout(statusTimer)
@@ -336,12 +334,15 @@ function addLittleFella() {
 
     scene.getAnimationGroupByName('RunCycle').start(true, undefined, 0, .6)
     let fella = scene.getMeshByName('Fella').parent.parent
-
+    
     let fellaImposter = MeshBuilder.CreateBox('fellaImposter', {
       width: 2.5,
       height: 6.5,
       depth: 2.5
     })
+    const originalX = -10
+    fellaImposter.position.x = originalX
+    fellaImposter.position.z = 8
     let transparentMaterial = new StandardMaterial('transparent', scene)
     transparentMaterial.alpha = 0
     fellaImposter.material = transparentMaterial
@@ -351,7 +352,7 @@ function addLittleFella() {
     let turnaround = false
     let goingLeft = false
     scene.onBeforeRenderObservable.add(() => {
-      turnaround = Math.abs(fellaImposter.position.x) > 5
+      turnaround = Math.abs(fellaImposter.position.x - originalX) > 5
       if (turnaround) {
         goingLeft = !goingLeft
         fellaImposter.rotate(Axis.Y, Math.PI, Space.WORLD)
